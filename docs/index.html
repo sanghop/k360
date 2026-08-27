@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<title>K360 공유 뷰어</title>
+<style>
+  html, body { margin: 0; padding: 0; height: 100%; background: #0b0f1a; color: #eee; font-family: sans-serif; }
+  .layout { display: flex; height: 100vh; }
+  .sidebar { width: 260px; border-right: 1px solid #333; overflow-y: auto; padding: 12px; box-sizing: border-box; }
+  .sidebar h2 { font-size: 13px; color: #999; margin: 16px 0 6px; }
+  .sidebar button { display: block; width: 100%; text-align: left; background: transparent; border: 1px solid #333; color: #ccc;
+    padding: 6px 10px; border-radius: 6px; margin-bottom: 6px; cursor: pointer; font-size: 12px; }
+  .sidebar button.active { background: #3a6df0; border-color: #3a6df0; color: #fff; }
+  .main { flex: 1; display: flex; }
+  .video-col { flex: 1.4; position: relative; background: #000; }
+  .video-col video { width: 100%; height: 100%; object-fit: contain; }
+  .path-col { flex: 1; position: relative; border-left: 1px solid #333; }
+  .path-col canvas { width: 100%; height: 100%; display: block; }
+  .empty-msg { display: flex; align-items: center; justify-content: center; height: 100%; color: #666; font-size: 13px; }
+  .updated-at { font-size: 11px; color: #666; margin-top: 20px; }
+</style>
+</head>
+<body>
+  <div class="layout">
+    <div class="sidebar" id="sidebar">
+      <div class="empty-msg">목록 불러오는 중...</div>
+    </div>
+    <div class="main" id="main">
+      <div class="empty-msg" style="width:100%">왼쪽에서 프로젝트를 선택하세요</div>
+    </div>
+  </div>
+
+<script>
+  let INDEX = null;
+  let currentRun = null;
+
+  async function loadIndex() {
+    const res = await fetch("./index.json", { cache: "no-store" });
+    INDEX = await res.json();
+    renderSidebar();
+  }
+
+  function renderSidebar() {
+    const sidebar = document.getElementById("sidebar");
+    sidebar.innerHTML = "";
+
+    if (!INDEX.projects || INDEX.projects.length === 0) {
+      sidebar.innerHTML = '<div class="empty-msg">등록된 프로젝트가 없습니다.</div>';
+      return;
+    }
+
+    INDEX.projects.forEach((project) => {
+      const h = document.createElement("h2");
+      h.textContent = project.projectName;
+      sidebar.appendChild(h);
+
+      project.floors.forEach((floor) => {
+        floor.runs.forEach((run) => {
+          const btn = document.createElement("button");
+          btn.textContent = `${floor.floor} - ${run.date}`;
+          btn.onclick = () => selectRun(project, floor, run, btn);
+          sidebar.appendChild(btn);
+        });
+      });
+    });
+
+    const updatedAt = document.createElement("div");
+    updatedAt.className = "updated-at";
+    updatedAt.textContent = "마지막 갱신: " + new Date(INDEX.generatedAt).toLocaleString("ko-KR");
+    sidebar.appendChild(updatedAt);
+  }
+
+  function selectRun(project, floor, run, btnEl) {
+    document.querySelectorAll(".sidebar button").forEach((b) => b.classList.remove("active"));
+    btnEl.classList.add("active");
+    currentRun = run;
+
+    const main = document.getElementById("main");
+    main.innerHTML = `
+      <div class="video-col"><video id="video" src="${run.videoUrl}" controls playsinline></video></div>
+      <div class="path-col"><canvas id="canvas"></canvas></div>
+    `;
+
+    const canvas = document.getElementById("canvas");
+    const ctx = canvas.getContext("2d");
+    const video = document.getElementById("video");
+
+    let floorplanImg = null;
+    if (floor.floorplanUrl) {
+      floorplanImg = new Image();
+      floorplanImg.crossOrigin = "anonymous";
+      floorplanImg.onload = draw;
+      floorplanImg.src = floor.floorplanUrl;
+    }
+
+    function getBounds(points) {
+      const xs = points.map((p) => p.x), ys = points.map((p) => p.y);
+      return { minX: Math.min(...xs), maxX: Math.max(...xs), minY: Math.min(...ys), maxY: Math.max(...ys) };
+    }
+    function getInterpolatedPosition(points, t) {
+      if (!points || points.length === 0) return null;
+      if (t <= points[0].timestamp) return points[0];
+      if (t >= points[points.length - 1].timestamp) return points[points.length - 1];
+      for (let i = 0; i < points.length - 1; i++) {
+        const a = points[i], b = points[i + 1];
+        if (t >= a.timestamp && t <= b.timestamp) {
+          const span = b.timestamp - a.timestamp || 1;
+          const frac = (t - a.timestamp) / span;
+          return { x: a.x + (b.x - a.x) * frac, y: a.y + (b.y - a.y) * frac };
+        }
+      }
+      return points[points.length - 1];
+    }
+    function project(x, y, centroid, rectW, rectH, scale, floorplanReady) {
+      const dx = x - centroid.x, dy = y - centroid.y;
+      if (floorplanReady) return [rectW / 2 + dx, rectH / 2 - dy];
+      return [rectW / 2 + dx * scale, rectH / 2 - dy * scale];
+    }
+
+    function draw() {
+      const rect = canvas.getBoundingClientRect();
+      canvas.width = rect.width;
+      canvas.height = rect.height;
+      ctx.clearRect(0, 0, rect.width, rect.height);
+
+      if (floorplanImg && floorplanImg.complete) {
+        const s = Math.min(rect.width / floorplanImg.width, rect.height / floorplanImg.height);
+        const w = floorplanImg.width * s, h = floorplanImg.height * s;
+        ctx.drawImage(floorplanImg, (rect.width - w) / 2, (rect.height - h) / 2, w, h);
+      }
+
+      const points = run.points;
+      if (!points || points.length === 0) return;
+      const bounds = getBounds(points);
+      const centroid = { x: (bounds.minX + bounds.maxX) / 2, y: (bounds.minY + bounds.maxY) / 2 };
+      const dataW = Math.max(bounds.maxX - bounds.minX, 0.001);
+      const dataH = Math.max(bounds.maxY - bounds.minY, 0.001);
+      const fitScale = Math.min((rect.width - 40) / dataW, (rect.height - 40) / dataH);
+
+      ctx.beginPath();
+      points.forEach((p, i) => {
+        const [px, py] = project(p.x, p.y, centroid, rect.width, rect.height, fitScale, !!floorplanImg);
+        if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+      });
+      ctx.strokeStyle = "#7d93c9";
+      ctx.lineWidth = 2;
+      ctx.stroke();
+
+      points.forEach((p, i) => {
+        const [px, py] = project(p.x, p.y, centroid, rect.width, rect.height, fitScale, !!floorplanImg);
+        ctx.beginPath();
+        ctx.arc(px, py, i === 0 || i === points.length - 1 ? 6 : 3, 0, Math.PI * 2);
+        ctx.fillStyle = i === 0 ? "#1fa35c" : i === points.length - 1 ? "#d64545" : "#7d93c9";
+        ctx.fill();
+      });
+
+      const current = getInterpolatedPosition(points, video.currentTime);
+      if (current) {
+        const [cx, cy] = project(current.x, current.y, centroid, rect.width, rect.height, fitScale, !!floorplanImg);
+        ctx.beginPath();
+        ctx.arc(cx, cy, 8, 0, Math.PI * 2);
+        ctx.strokeStyle = "#ffd600";
+        ctx.lineWidth = 3;
+        ctx.stroke();
+      }
+    }
+
+    canvas.addEventListener("click", (e) => {
+      const rect = canvas.getBoundingClientRect();
+      const points = run.points;
+      const bounds = getBounds(points);
+      const centroid = { x: (bounds.minX + bounds.maxX) / 2, y: (bounds.minY + bounds.maxY) / 2 };
+      const dataW = Math.max(bounds.maxX - bounds.minX, 0.001);
+      const dataH = Math.max(bounds.maxY - bounds.minY, 0.001);
+      const fitScale = Math.min((rect.width - 40) / dataW, (rect.height - 40) / dataH);
+      const mx = e.clientX - rect.left, my = e.clientY - rect.top;
+      let closest = null, closestDist = 20;
+      points.forEach((p) => {
+        const [px, py] = project(p.x, p.y, centroid, rect.width, rect.height, fitScale, !!floorplanImg);
+        const d = Math.hypot(px - mx, py - my);
+        if (d < closestDist) { closestDist = d; closest = p; }
+      });
+      if (closest) video.currentTime = closest.timestamp;
+    });
+
+    video.addEventListener("timeupdate", draw);
+    video.addEventListener("loadedmetadata", draw);
+    window.addEventListener("resize", draw);
+    draw();
+  }
+
+  loadIndex();
+</script>
+</body>
+</html>

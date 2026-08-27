@@ -1,0 +1,37 @@
+name: Sync SharePoint to index.json
+
+on:
+  schedule:
+    # 매일 자정(한국 시간, KST=UTC+9) 실행 -> UTC 기준 15:00
+    - cron: "0 15 * * *"
+  workflow_dispatch: {} # 수동으로도 즉시 실행 가능하게 (테스트/확인용)
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: 저장소 체크아웃
+        uses: actions/checkout@v4
+
+      - name: Node.js 설치
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: 동기화 스크립트 실행
+        env:
+          AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+          AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+          AZURE_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
+          SHAREPOINT_FOLDER_URL: ${{ secrets.SHAREPOINT_FOLDER_URL }}
+        run: node scripts/syncSharePoint.js
+
+      - name: 변경사항 커밋
+        run: |
+          git config user.name "K360 Sync Bot"
+          git config user.email "actions@github.com"
+          git add docs/index.json
+          git diff --staged --quiet || git commit -m "자동 동기화: $(date -u +'%Y-%m-%d %H:%M UTC')"
+          git push
