@@ -88,7 +88,6 @@
     let floorplanImg = null;
     if (floor.floorplanUrl) {
       floorplanImg = new Image();
-      floorplanImg.crossOrigin = "anonymous";
       floorplanImg.onload = draw;
       floorplanImg.src = floor.floorplanUrl;
     }
