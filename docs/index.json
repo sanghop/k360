@@ -1,0 +1,37 @@
+{
+  "generatedAt": "2026-08-27T03:45:46.843Z",
+  "projects": [
+    {
+      "projectName": "Sproject_2026",
+      "floors": [
+        {
+          "floor": "1F",
+          "floorplanUrl": "https://ikukbo.sharepoint.com/:i:/s/KUKBOK360/IQCt_lJ3rmLfS5as7IZRnrpEAeeWITyrQ6iFDe8kgQ8l_Vg",
+          "runs": [
+            {
+              "date": "2026-08-27",
+              "videoUrl": "https://ikukbo.sharepoint.com/:v:/s/KUKBOK360/IQB8uQ4IO1rfQ6lstdGvpM3XAdP4mRj2QD96S9VAPgdi8_k",
+              "points": [
+                {
+                  "timestamp": 0,
+                  "x": 0,
+                  "y": 0
+                },
+                {
+                  "timestamp": 5,
+                  "x": 100,
+                  "y": 50
+                },
+                {
+                  "timestamp": 10,
+                  "x": 200,
+                  "y": 0
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
