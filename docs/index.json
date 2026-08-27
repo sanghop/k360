@@ -1,16 +1,16 @@
 {
-  "generatedAt": "2026-08-27T03:45:46.843Z",
+  "generatedAt": "2026-08-27T03:54:54.149Z",
   "projects": [
     {
       "projectName": "Sproject_2026",
       "floors": [
         {
           "floor": "1F",
-          "floorplanUrl": "https://ikukbo.sharepoint.com/:i:/s/KUKBOK360/IQCt_lJ3rmLfS5as7IZRnrpEAeeWITyrQ6iFDe8kgQ8l_Vg",
+          "floorplanUrl": "https://ikukbo.sharepoint.com/:i:/s/KUKBOK360/IQCt_lJ3rmLfS5as7IZRnrpEAeeWITyrQ6iFDe8kgQ8l_Vg?download=1",
           "runs": [
             {
               "date": "2026-08-27",
-              "videoUrl": "https://ikukbo.sharepoint.com/:v:/s/KUKBOK360/IQB8uQ4IO1rfQ6lstdGvpM3XAdP4mRj2QD96S9VAPgdi8_k",
+              "videoUrl": "https://ikukbo.sharepoint.com/:v:/s/KUKBOK360/IQB8uQ4IO1rfQ6lstdGvpM3XAdP4mRj2QD96S9VAPgdi8_k?download=1",
               "points": [
                 {
                   "timestamp": 0,
