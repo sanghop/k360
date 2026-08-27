@@ -55,7 +55,11 @@
       sidebar.appendChild(h);
 
       project.floors.forEach((floor) => {
-        floor.runs.forEach((run) => {
+        // 최신 날짜가 항상 위로 오도록 정렬 (날짜가 없는 항목은 맨 아래로)
+        const sortedRuns = [...floor.runs].sort((a, b) =>
+          (b.date || "0000-00-00").localeCompare(a.date || "0000-00-00")
+        );
+        sortedRuns.forEach((run) => {
           const btn = document.createElement("button");
           btn.textContent = `${floor.floor} - ${run.date}`;
           btn.onclick = () => selectRun(project, floor, run, btn);
